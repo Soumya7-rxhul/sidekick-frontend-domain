@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import AppLayout from '../layouts/AppLayout';
 import { EmptyState, SkeletonList, CategoryChip, TabBar, PageHeader, GradientButton } from '../components/ui/UIKit';
 import UserProfileModal from '../components/ui/UserProfileModal';
+import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import api from '../utils/api';
 
 const sp = { type: 'spring', stiffness: 300, damping: 28 };
@@ -188,8 +189,9 @@ export default function EventsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [viewProfile, setViewProfile]   = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', category: 'hangout', date: '', timeSlot: 'evening', city: '', venue: '', maxParticipants: 2 });
+  const [form, setForm] = useState({ title: '', description: '', category: 'hangout', date: '', timeSlot: 'evening', city: '', place_name: '', lat: null, lng: null, country: '', venue: '', maxParticipants: 2 });
   const [creating, setCreating]     = useState(false);
+  const [cityError, setCityError]   = useState('');
 
   const handleEventChat = async (eventId) => {
     try {
@@ -232,24 +234,43 @@ export default function EventsPage() {
 
   const startEdit = (event) => {
     setEditingEvent(event._id);
-    setForm({ title: event.title, description: event.description || '', category: event.category, date: event.date?.split('T')[0] || '', timeSlot: event.timeSlot || 'evening', city: event.location?.city || '', venue: event.location?.venue || '', maxParticipants: event.maxParticipants || 2 });
+    setForm({
+      title: event.title,
+      description: event.description || '',
+      category: event.category,
+      date: event.date?.split('T')[0] || '',
+      timeSlot: event.timeSlot || 'evening',
+      city: event.location?.city || '',
+      place_name: event.location?.place_name || '',
+      lat: event.location?.lat || null,
+      lng: event.location?.lng || null,
+      country: event.location?.country || '',
+      venue: event.location?.venue || '',
+      maxParticipants: event.maxParticipants || 2,
+    });
+    setCityError('');
     setShowCreate(true);
   };
 
   const saveEvent = async () => {
     if (!form.title || !form.date) return toast.error('Title and date are required');
+    if (!form.city) { setCityError('Please select a valid city from the dropdown'); return; }
+    setCityError('');
     setCreating(true);
     try {
+      const location = { city: form.city, place_name: form.place_name, venue: form.venue, country: form.country };
+      if (form.lat && form.lng) { location.lat = form.lat; location.lng = form.lng; }
       if (editingEvent) {
-        await api.put(`/events/${editingEvent}`, { ...form, location: { city: form.city, venue: form.venue } });
+        await api.put(`/events/${editingEvent}`, { ...form, location });
         toast.success('Event updated!');
       } else {
-        await api.post('/events', { ...form, location: { city: form.city, venue: form.venue } });
+        await api.post('/events', { ...form, location });
         toast.success('Event created!');
       }
       setShowCreate(false);
       setEditingEvent(null);
-      setForm({ title: '', description: '', category: 'hangout', date: '', timeSlot: 'evening', city: '', venue: '', maxParticipants: 2 });
+      setForm({ title: '', description: '', category: 'hangout', date: '', timeSlot: 'evening', city: '', place_name: '', lat: null, lng: null, country: '', venue: '', maxParticipants: 2 });
+      setCityError('');
       fetchEvents();
       api.get('/events/mine').then(r => setMyEvents(r.data.events || []));
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to save'); }
@@ -301,8 +322,21 @@ export default function EventsPage() {
                     <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#6E6893', pointerEvents: 'none' }}>max</span>
                   </div>
                 </div>
-                <input style={inputStyle} placeholder="City" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
                 <input style={inputStyle} placeholder="Venue (optional)" value={form.venue} onChange={e => setForm({ ...form, venue: e.target.value })} />
+                <LocationAutocomplete
+                  value={form.city}
+                  onChange={(loc) => {
+                    setCityError('');
+                    if (loc) {
+                      setForm(f => ({ ...f, city: loc.city, place_name: loc.name, lat: loc.coords[1], lng: loc.coords[0], country: loc.country }));
+                    } else {
+                      setForm(f => ({ ...f, city: '', place_name: '', lat: null, lng: null, country: '' }));
+                    }
+                  }}
+                  placeholder="Event city"
+                  label="City"
+                  error={cityError}
+                />
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={saveEvent} disabled={creating}
                   style={{ height: 44, background: 'linear-gradient(135deg, #7C3AED, #2DD4BF)', color: 'white', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 16px rgba(124,58,237,0.3)' }}>
                   {creating ? <span style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.65s linear infinite', display: 'inline-block' }} /> : editingEvent ? 'Save Changes' : 'Create Event'}

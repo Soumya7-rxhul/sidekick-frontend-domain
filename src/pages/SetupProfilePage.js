@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import AuroraBackground from '../components/ui/AuroraBackground';
 import { GradientButton, SelectableChip } from '../components/ui/UIKit';
+import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import { OnboardingCard, ProgressBar } from '../components/onboarding/OnboardingKit';
 import api from '../utils/api';
 
@@ -21,8 +22,9 @@ export default function SetupProfilePage() {
   const { updateUser } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ age: '', gender: '', bio: '', city: '', interests: [], vibeTag: '', availability: [] });
+  const [form, setForm] = useState({ age: '', gender: '', bio: '', city: '', lat: null, lng: null, interests: [], vibeTag: '', availability: [] });
   const [loading, setLoading] = useState(false);
+  const [cityError, setCityError] = useState('');
 
   const toggleInterest = (i) => setForm(f => ({ ...f, interests: f.interests.includes(i) ? f.interests.filter(x => x !== i) : [...f.interests, i] }));
 
@@ -42,7 +44,9 @@ export default function SetupProfilePage() {
   const save = async () => {
     setLoading(true);
     try {
-      const { data } = await api.put('/users/profile', { ...form, location: { city: form.city } });
+      const location = { city: form.city };
+      if (form.lat && form.lng) { location.lat = form.lat; location.lng = form.lng; }
+      const { data } = await api.put('/users/profile', { ...form, location });
       updateUser(data.user);
       toast.success('Profile saved!');
       navigate('/dashboard');
@@ -74,9 +78,30 @@ export default function SetupProfilePage() {
                           {['male','female','non-binary','prefer-not-to-say'].map(g => <option key={g} value={g} style={{ background: '#1A1535' }}>{g}</option>)}
                         </select>
                       </div>
-                      <div><label style={labelStyle}>City</label><input style={inputStyle} placeholder="Bhubaneswar, Mumbai..." value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+                      <div>
+                        <label style={labelStyle}>City</label>
+                        <LocationAutocomplete
+                          value={form.city}
+                          onChange={(loc) => {
+                            setCityError('');
+                            if (loc) {
+                              setForm(f => ({ ...f, city: loc.city, lat: loc.coords[1], lng: loc.coords[0] }));
+                            } else {
+                              setForm(f => ({ ...f, city: '', lat: null, lng: null }));
+                            }
+                          }}
+                          placeholder="Bhubaneswar, Mumbai..."
+                          label="City"
+                          country="in"
+                          error={cityError}
+                        />
+                      </div>
                       <div><label style={labelStyle}>Bio (optional)</label><textarea style={{ ...inputStyle, height: 'auto', padding: '10px 14px', resize: 'none' }} placeholder="A little about yourself..." rows={3} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} /></div>
-                      <GradientButton onClick={() => setStep(2)} fullWidth icon={ArrowRight}>Next</GradientButton>
+                      <GradientButton onClick={() => {
+                        if (!form.city) { setCityError('Please select a valid city from the dropdown'); return; }
+                        setCityError('');
+                        setStep(2);
+                      }} fullWidth icon={ArrowRight}>Next</GradientButton>
                     </div>
                   </OnboardingCard>
                 </motion.div>

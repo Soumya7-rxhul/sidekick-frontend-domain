@@ -6,6 +6,7 @@ import { MapPin, LogOut, ChevronRight, Edit2, Clock, Shield, Bell, Eye, HelpCirc
 import toast from 'react-hot-toast';
 import AppLayout from '../layouts/AppLayout';
 import { Badge, GradientText } from '../components/ui/UIKit';
+import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import SideKickScore from '../components/ui/SideKickScore';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -34,7 +35,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ bio: user?.bio || '', city: user?.location?.city || '', interests: user?.interests || [], vibeTag: user?.vibeTag || '' });
+  const [form, setForm] = useState({ bio: user?.bio || '', city: user?.location?.city || '', lat: user?.location?.lat || null, lng: user?.location?.lng || null, interests: user?.interests || [], vibeTag: user?.vibeTag || '' });
   const [saving, setSaving] = useState(false);
   const [notifSettings, setNotifSettings] = useState({ matchRequests: true, matchAccepted: true, eventJoined: true, messages: true });
   const [safetyContacts, setSafetyContacts] = useState(user?.safetyContacts || []);
@@ -93,7 +94,9 @@ export default function ProfilePage() {
   const save = async () => {
     setSaving(true);
     try {
-      const { data } = await api.put('/users/profile', { bio: form.bio, location: { city: form.city }, interests: form.interests, vibeTag: form.vibeTag });
+      const location = { city: form.city };
+      if (form.lat && form.lng) { location.lat = form.lat; location.lng = form.lng; }
+      const { data } = await api.put('/users/profile', { bio: form.bio, location, interests: form.interests, vibeTag: form.vibeTag });
       updateUser(data.user);
       setEditing(false);
       toast.success('Profile updated!');
@@ -167,7 +170,21 @@ export default function ProfilePage() {
             <p style={{ fontSize: 15, fontWeight: 600, color: '#F1F0F7', marginBottom: 14 }}>Edit Profile</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><label style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Bio</label><textarea style={{ ...inputStyle, height: 'auto', resize: 'none' }} rows={3} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Tell others about yourself..." /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>City</label><input style={inputStyle} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder="Your city" /></div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>City</label>
+                <LocationAutocomplete
+                  value={form.city}
+                  onChange={(loc) => {
+                    if (loc) {
+                      setForm(f => ({ ...f, city: loc.city, lat: loc.coords[1], lng: loc.coords[0] }));
+                    } else {
+                      setForm(f => ({ ...f, city: '', lat: null, lng: null }));
+                    }
+                  }}
+                  placeholder="Your city"
+                  label="City"
+                />
+              </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Interests</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
