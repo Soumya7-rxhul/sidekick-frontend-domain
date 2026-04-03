@@ -19,15 +19,37 @@ const CITY_COORDS = {
   sambalpur:   [83.9756, 21.4669],
   mumbai:      [72.8777, 19.0760],
   delhi:       [77.2090, 28.6139],
+  newdelhi:    [77.2090, 28.6139],
   bangalore:   [77.5946, 12.9716],
+  bengaluru:   [77.5946, 12.9716],
   hyderabad:   [78.4867, 17.3850],
   chennai:     [80.2707, 13.0827],
   kolkata:     [88.3639, 22.5726],
+  calcutta:    [88.3639, 22.5726],
   pune:        [73.8567, 18.5204],
   jaipur:      [75.7873, 26.9124],
+  ahmedabad:   [72.5714, 23.0225],
+  surat:       [72.8311, 21.1702],
+  lucknow:     [80.9462, 26.8467],
+  nagpur:      [79.0882, 21.1458],
+  indore:      [75.8577, 22.7196],
+  patna:       [85.1376, 25.5941],
+  bhopal:      [77.4126, 23.2599],
+  visakhapatnam: [83.2185, 17.6868],
+  vizag:       [83.2185, 17.6868],
 };
 
-const getCityCoords = (city) => city ? CITY_COORDS[city.toLowerCase()] || null : null;
+const getCityCoords = (city) => {
+  if (!city) return null;
+  const key = city.toLowerCase().trim()
+    .replace(/\s+/g, '')        // remove spaces: "New Delhi" → "newdelhi"
+    .replace(/[^a-z]/g, '');    // strip non-alpha
+  // direct match
+  if (CITY_COORDS[key]) return CITY_COORDS[key];
+  // partial match — find first key that contains or is contained by the input
+  const found = Object.keys(CITY_COORDS).find(k => key.includes(k) || k.includes(key));
+  return found ? CITY_COORDS[found] : null;
+};
 
 const CATEGORY_EMOJI = {
   movie: '🍿', sports: '⚽', food: '🍜', study: '📚', hangout: '🤝',
@@ -169,15 +191,16 @@ export default function MapPage() {
     new mapboxgl.Popup({ offset: 22, closeButton: true, className: 'sk-popup', closeOnClick: false })
       .setHTML(`<div style="padding:14px 16px">${html}</div>`);
 
-  // Build markers — runs only when data/tab changes, NOT on selectedEventId change
+  // Build markers — runs when data/tab changes, NOT on selectedEventId change
   useEffect(() => {
     if (!map.current) return;
 
-    // Close any open popup and clear markers
-    if (activePopupRef.current) { activePopupRef.current.remove(); activePopupRef.current = null; }
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-    eventMarkersRef.current = {};
+    const build = () => {
+      // Close any open popup and clear markers
+      if (activePopupRef.current) { activePopupRef.current.remove(); activePopupRef.current = null; }
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
+      eventMarkersRef.current = {};
 
     const addMarker = (coords, el, popup) => {
       const m = new mapboxgl.Marker({ element: el }).setLngLat(coords).setPopup(popup).addTo(map.current);
@@ -262,22 +285,41 @@ export default function MapPage() {
         eventMarkersRef.current[e._id] = { marker, popup, coords };
       });
     }
+    }; // end build()
+
+    if (map.current.isStyleLoaded()) {
+      build();
+    } else {
+      map.current.once('styledata', build);
+    }
   }, [matches, activeMatches, events, activeTab, joinedIds]);
 
-  // When selectedEventId changes, open popup + highlight — no marker rebuild
+  // When selectedEventId changes, open popup + flyTo — no marker rebuild
   useEffect(() => {
     if (!selectedEventId || !map.current) return;
-    const entry = eventMarkersRef.current[selectedEventId];
-    if (!entry) return;
 
-    // Close previous popup
-    if (activePopupRef.current && activePopupRef.current !== entry.popup) {
-      activePopupRef.current.remove();
-    }
+    // eventMarkersRef may not be ready yet if markers are still being built
+    // Use a small defer to let the marker-build effect finish first
+    const open = () => {
+      const entry = eventMarkersRef.current[selectedEventId];
+      if (!entry) return;
 
-    map.current.flyTo({ center: entry.coords, zoom: 14, duration: 800 });
-    entry.marker.togglePopup();
-    activePopupRef.current = entry.popup;
+      if (activePopupRef.current && activePopupRef.current !== entry.popup) {
+        activePopupRef.current.remove();
+        activePopupRef.current = null;
+      }
+
+      map.current.flyTo({ center: entry.coords, zoom: 14, duration: 800 });
+
+      if (!entry.popup.isOpen()) {
+        entry.marker.togglePopup();
+      }
+      activePopupRef.current = entry.popup;
+    };
+
+    // Defer one tick so marker-build useEffect finishes populating eventMarkersRef
+    const t = setTimeout(open, 50);
+    return () => clearTimeout(t);
   }, [selectedEventId]);
 
   const handleRoute = async () => {
@@ -430,7 +472,16 @@ export default function MapPage() {
                 <motion.div
                   key={e._id}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedEventId(e._id)}
+                  onClick={() => {
+                    const coords = e.location?.lat && e.location?.lng
+                      ? [e.location.lng, e.location.lat]
+                      : getCityCoords(e.location?.city);
+                    if (!coords) {
+                      toast(`📍 No map location for "${e.location?.city || 'this event'}" yet`, { icon: 'ℹ️' });
+                      return;
+                    }
+                    setSelectedEventId(e._id);
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 14px', borderRadius: 14, cursor: 'pointer',
