@@ -171,7 +171,7 @@ function EventCard({ event, joined, onJoin, onEdit, onDelete, onViewProfile, onC
             </motion.button>
           )}
         </div>
-      )}}
+      )}
     </motion.div>
   );
 }
