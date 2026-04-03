@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components/ui/UIKit';
 import MeetupScheduler from '../components/ui/MeetupScheduler';
 import VideoCall from '../components/ui/VideoCall';
+import UserProfileModal from '../components/ui/UserProfileModal';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
@@ -31,6 +32,7 @@ export default function ChatRoomPage() {
   const [reactionMsg, setReactionMsg] = useState(null);
   const [icebreakers, setIcebreakers] = useState([]);
   const [iceDismissed, setIceDismissed] = useState(false);
+  const [viewProfile, setViewProfile] = useState(false);
 
   const bottomRef    = useRef();
   const pollRef      = useRef();
@@ -161,17 +163,22 @@ export default function ChatRoomPage() {
           style={{ width: 36, height: 36, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
           <ArrowLeft size={18} color="#A8A3C7" />
         </motion.button>
-        <Avatar name={otherUser?.name} size={36} />
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#F1F0F7', margin: 0 }}>
-            {otherUser?.isEvent ? `🎟️ ${otherUser.name}` : (otherUser?.name || 'SideKick')}
-          </p>
-          <p style={{ fontSize: 11, color: '#6E6893', margin: 0 }}>
-            {otherUser?.isEvent
-              ? `${otherUser.participants?.length || 0} participants`
-              : 'Active now'}
-          </p>
-        </div>
+        {/* Clickable header — opens profile for companion rooms */}
+        <motion.div whileTap={{ scale: 0.97 }}
+          onClick={() => !isEventRoom && otherUser?._id && setViewProfile(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, cursor: !isEventRoom && otherUser?._id ? 'pointer' : 'default', minWidth: 0 }}>
+          <Avatar name={otherUser?.name} size={36} />
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#F1F0F7', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {otherUser?.isEvent ? `🎟️ ${otherUser.name}` : (otherUser?.name || 'SideKick')}
+            </p>
+            <p style={{ fontSize: 11, color: '#6E6893', margin: 0 }}>
+              {otherUser?.isEvent
+                ? `${otherUser.participants?.length || 0} participants`
+                : !isEventRoom ? 'Tap to view profile' : 'Active now'}
+            </p>
+          </div>
+        </motion.div>
         {!isEventRoom && (
           <>
             <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCallMode('audio')}
@@ -381,6 +388,14 @@ export default function ChatRoomPage() {
       <AnimatePresence>
         {callMode && <VideoCall roomId={`sidekick-${roomId}`} userId={user._id} otherUser={otherUser} mode={callMode} onEnd={() => setCallMode(null)} />}
         {showMeetup && matchId && <MeetupScheduler matchId={matchId} otherUser={otherUser} currentUserId={user._id} onClose={() => setShowMeetup(false)} />}
+        {viewProfile && otherUser?._id && (
+          <UserProfileModal
+            userId={otherUser._id}
+            onClose={() => setViewProfile(false)}
+            onAccept={() => {}}
+            onReject={() => {}}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
