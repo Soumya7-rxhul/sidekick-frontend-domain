@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root { --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+html, body, #root {
+  height: 100%;
+  background: #0F0B21;
+  color: #F1F0F7;
+  font-family: var(--font);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+input, select, textarea { color-scheme: dark; font-family: var(--font); }
+input::placeholder, textarea::placeholder { color: #4A4570 !important; }
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 100px #2D2653 inset !important;
+  -webkit-text-fill-color: #F1F0F7 !important;
+}
+select option { background: #1A1535; color: #F1F0F7; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2D2653; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #433B72; }
+
+.bubble-me {
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  border-radius: 18px 18px 4px 18px;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.25);
+}
+.bubble-other {
+  background: #1A1535;
+  border: 1px solid #2D2653;
+  border-radius: 18px 18px 18px 4px;
+}
+
+.input {
+  width: 100%;
+  background: #2D2653;
+  border: 1.5px solid #433B72;
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #F1F0F7;
+  font-family: var(--font);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+.input:focus {
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.3);
+  background: #362F5E;
+}
+.input::placeholder { color: #4A4570; }
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6E6893;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}

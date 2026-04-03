@@ -1,0 +1,8 @@
+name = "sidekick-frontend"
+compatibility_date = "2024-01-01"
+
+[site]
+bucket = "./build"
+
+[build]
+command = "npm run build"
