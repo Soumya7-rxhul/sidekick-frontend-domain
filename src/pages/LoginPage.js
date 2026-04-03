@@ -1,21 +1,22 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
-import MeshBackground    from '../components/auth/MeshBackground';
-import ScooterEntrance   from '../components/auth/ScooterEntrance';
-import LoginFormCard     from '../components/auth/LoginFormCard';
-import FloatingIcons     from '../components/auth/FloatingIcons';
+import MeshBackground  from '../components/auth/MeshBackground';
+import ScooterEntrance from '../components/auth/ScooterEntrance';
+import LoginFormCard   from '../components/auth/LoginFormCard';
+import FloatingIcons   from '../components/auth/FloatingIcons';
 
-// Stagger letters for "SideKick"
+// Stagger letters for "SideKick" — preserved exactly
 const TITLE = 'SideKick'.split('');
 
 export default function LoginPage() {
-  const { login }  = useAuth();
-  const navigate   = useNavigate();
-  const scooterCtrl = useAnimation();
+  // ── All original state & logic preserved ──────────────────
+  const { login }    = useAuth();
+  const navigate     = useNavigate();
+  const scooterCtrl  = useAnimation();
 
   const [settled,   setSettled]   = useState(false);
   const [email,     setEmail]     = useState(() => localStorage.getItem('rememberedEmail') || '');
@@ -24,10 +25,8 @@ export default function LoginPage() {
   const [error,     setError]     = useState('');
   const [celebrate, setCelebrate] = useState(false);
 
-  // Micro-interaction: headlight brightens when email has value
   const headlightBright = email.length > 0;
-  // Micro-interaction: riders lean when password has value
-  const ridersLean = password.length > 0;
+  const ridersLean      = password.length > 0;
 
   const handleSubmit = useCallback(async (e, loginData) => {
     e.preventDefault();
@@ -47,21 +46,38 @@ export default function LoginPage() {
       setLoading(false);
     }
   }, [login, navigate, scooterCtrl]);
+  // ──────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', position: 'relative', overflow: 'hidden', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{
+      minHeight: '100vh', width: '100%',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'flex-start',
+      position: 'relative', overflow: 'hidden',
+      fontFamily: 'Inter, sans-serif',
+    }}>
 
-      {/* Layer 1+2: Background */}
+      {/* ── Layer 1+2: Background (unchanged) ── */}
       <MeshBackground />
 
-      {/* Layer 3: Floating icons (appear after settled) */}
+      {/* ── Layer 3: Floating icons (unchanged) ── */}
       <FloatingIcons visible={settled} />
 
-      {/* Layer 4: Content */}
-      <div style={{ position: 'relative', zIndex: 20, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 48, paddingBottom: 40, minHeight: '100vh' }}>
+      {/* ── Layer 4: Page content ── */}
+      <div style={{
+        position: 'relative', zIndex: 20,
+        width: '100%',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        /* Generous top padding so scooter has room to breathe */
+        paddingTop: 40, paddingBottom: 56,
+        minHeight: '100vh',
+      }}>
 
-        {/* ── SCOOTER SECTION ── */}
-        <motion.div animate={scooterCtrl} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 8 }}>
+        {/* ── Scooter (unchanged) ── */}
+        <motion.div
+          animate={scooterCtrl}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 4 }}
+        >
           <ScooterEntrance
             onComplete={() => setSettled(true)}
             headlightBright={headlightBright}
@@ -70,20 +86,19 @@ export default function LoginPage() {
           />
         </motion.div>
 
-        {/* ── TITLE (letter-by-letter stagger) ── */}
+        {/* ── Brand title — letter stagger (unchanged) ── */}
         <AnimatePresence>
           {settled && (
-            <motion.div style={{ textAlign: 'center', marginBottom: 6 }}>
+            <motion.div style={{ textAlign: 'center', marginBottom: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                 {TITLE.map((letter, i) => (
                   <motion.span
                     key={i}
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.35, ease: 'easeOut' }}
+                    transition={{ delay: i * 0.05, duration: 0.32, ease: 'easeOut' }}
                     style={{
-                      fontSize: 42,
-                      fontWeight: 900,
+                      fontSize: 40, fontWeight: 900,
                       letterSpacing: '-0.03em',
                       background: 'linear-gradient(135deg, #8B5CF6 0%, #FF6B6B 100%)',
                       WebkitBackgroundClip: 'text',
@@ -98,10 +113,14 @@ export default function LoginPage() {
 
               {/* Tagline */}
               <motion.p
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.55, duration: 0.4 }}
-                style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginTop: 6, fontWeight: 400, letterSpacing: '0.01em' }}
+                transition={{ delay: 0.52, duration: 0.38 }}
+                style={{
+                  color: 'rgba(255,255,255,0.38)',
+                  fontSize: 14, marginTop: 8,
+                  fontWeight: 400, letterSpacing: '0.01em',
+                }}
               >
                 Never go alone. Find your SideKick.
               </motion.p>
@@ -109,10 +128,19 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        {/* ── FORM CARD ── */}
+        {/*
+          ── Form area ──────────────────────────────────────────
+          NO card wrapper. NO background. NO border.
+          The form floats directly on the page.
+          Only the inputs themselves have a subtle surface.
+        */}
         <AnimatePresence>
           {settled && (
-            <div style={{ width: '100%', maxWidth: 420, padding: '0 16px', marginTop: 24 }}>
+            <div style={{
+              width: '100%', maxWidth: 400,
+              padding: '0 24px',
+              marginTop: 28,
+            }}>
               <LoginFormCard
                 onSubmit={handleSubmit}
                 loading={loading}
@@ -128,11 +156,11 @@ export default function LoginPage() {
 
       </div>
 
-      {/* Global styles for placeholder color */}
+      {/* Global input overrides */}
       <style>{`
-        input::placeholder { color: rgba(255,255,255,0.25) !important; }
+        input::placeholder { color: rgba(255,255,255,0.22) !important; }
         input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 100px rgba(255,255,255,0.05) inset !important;
+          -webkit-box-shadow: 0 0 0 100px rgba(255,255,255,0.04) inset !important;
           -webkit-text-fill-color: white !important;
         }
         @media (max-width: 768px) {
