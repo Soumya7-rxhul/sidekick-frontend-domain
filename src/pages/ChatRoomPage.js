@@ -29,6 +29,8 @@ export default function ChatRoomPage() {
   const [recording, setRecording]     = useState(false);
   const [recordTime, setRecordTime]   = useState(0);
   const [reactionMsg, setReactionMsg] = useState(null);
+  const [icebreakers, setIcebreakers] = useState([]);
+  const [iceDismissed, setIceDismissed] = useState(false);
 
   const bottomRef    = useRef();
   const pollRef      = useRef();
@@ -66,6 +68,10 @@ export default function ChatRoomPage() {
         if (room) { setMatchId(room.matchId); if (!otherUser) setOtherUser(room.other); }
       }).catch(() => {});
     }
+    // Fetch icebreakers once on room open
+    api.get(`/chats/${roomId}/icebreaker`)
+      .then(r => { if (r.data.prompts?.length) setIcebreakers(r.data.prompts); })
+      .catch(() => {});
     api.post('/chats/read', { roomId }).catch(() => {});
     pollRef.current = setInterval(fetchMessages, 3000);
     return () => clearInterval(pollRef.current);
@@ -300,6 +306,43 @@ export default function ChatRoomPage() {
                 style={{ height: 32, padding: '0 12px', borderRadius: 8, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#F87171', fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>Cancel</motion.button>
               <motion.button whileTap={{ scale: 0.9 }} onClick={stopRecording}
                 style={{ height: 32, padding: '0 12px', borderRadius: 8, background: 'linear-gradient(135deg,#7C3AED,#2DD4BF)', border: 'none', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>Send</motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Icebreaker strip */}
+      <AnimatePresence>
+        {icebreakers.length > 0 && !iceDismissed && messages.length < 3 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            style={{ padding: '10px 12px 6px', borderTop: '1px solid #2D2653', background: 'rgba(15,11,33,0.97)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', textTransform: 'uppercase', letterSpacing: '0.08em' }}>💡 Start the conversation</span>
+              <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIceDismissed(true)}
+                style={{ background: 'none', border: 'none', color: '#4A4570', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</motion.button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+              {icebreakers.map((prompt, i) => (
+                <motion.button key={i}
+                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.07 }}
+                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }}
+                  onClick={() => { setInput(prompt); inputRef.current?.focus(); }}
+                  style={{
+                    flexShrink: 0, height: 34, padding: '0 14px',
+                    borderRadius: 20, cursor: 'pointer',
+                    background: 'rgba(124,58,237,0.1)',
+                    border: '1px solid rgba(124,58,237,0.35)',
+                    color: '#C4B5FD', fontSize: 12, fontWeight: 500,
+                    fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap',
+                    boxShadow: '0 0 10px rgba(124,58,237,0.15)',
+                    transition: 'all 0.2s',
+                  }}>
+                  {prompt}
+                </motion.button>
+              ))}
             </div>
           </motion.div>
         )}
