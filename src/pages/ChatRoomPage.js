@@ -38,30 +38,38 @@ export default function ChatRoomPage() {
   const audioChunks  = useRef([]);
   const recordTimer  = useRef();
 
+  const isEventRoom = roomId?.startsWith('event_');
+
   const fetchMessages = useCallback(async () => {
     try {
-      const { data } = await api.get(`/chats/${roomId}`);
+      const url = isEventRoom ? `/events/${roomId.replace('event_', '')}/chat` : `/chats/${roomId}`;
+      const { data } = await api.get(url);
       const msgs = data.messages || [];
       if (msgs.length !== lastCount.current) {
         setMessages(msgs);
         lastCount.current = msgs.length;
-        const other = msgs.find(m => m.sender?._id !== user._id)?.sender;
-        if (other) setOtherUser(other);
+        if (!isEventRoom) {
+          const other = msgs.find(m => m.sender?._id !== user._id)?.sender;
+          if (other) setOtherUser(other);
+        } else if (data.event && !otherUser) {
+          setOtherUser({ name: data.event.title, isEvent: true, participants: data.participants });
+        }
       }
-    } catch { navigate('/chats'); }
-  }, [roomId, user._id]);
+    } catch { navigate(isEventRoom ? '/events' : '/chats'); }
+  }, [roomId, user._id, isEventRoom]);
 
   useEffect(() => {
     fetchMessages();
-    api.get('/chats/rooms').then(r => {
-      const room = (r.data.rooms || []).find(rm => rm.roomId === roomId);
-      if (room) { setMatchId(room.matchId); if (!otherUser) setOtherUser(room.other); }
-    }).catch(() => {});
-    // Mark as read
+    if (!isEventRoom) {
+      api.get('/chats/rooms').then(r => {
+        const room = (r.data.rooms || []).find(rm => rm.roomId === roomId);
+        if (room) { setMatchId(room.matchId); if (!otherUser) setOtherUser(room.other); }
+      }).catch(() => {});
+    }
     api.post('/chats/read', { roomId }).catch(() => {});
     pollRef.current = setInterval(fetchMessages, 3000);
     return () => clearInterval(pollRef.current);
-  }, [roomId, fetchMessages]);
+  }, [roomId, fetchMessages, isEventRoom]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -143,27 +151,37 @@ export default function ChatRoomPage() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
         style={{ height: 56, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(15,11,33,0.9)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #2D2653', position: 'sticky', top: 0, zIndex: 10 }}>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => navigate('/chats')}
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => navigate(isEventRoom ? '/events' : '/chats')}
           style={{ width: 36, height: 36, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
           <ArrowLeft size={18} color="#A8A3C7" />
         </motion.button>
         <Avatar name={otherUser?.name} size={36} />
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#F1F0F7', margin: 0 }}>{otherUser?.name || 'SideKick'}</p>
-          <p style={{ fontSize: 11, color: '#6E6893', margin: 0 }}>Active now</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#F1F0F7', margin: 0 }}>
+            {otherUser?.isEvent ? `🎟️ ${otherUser.name}` : (otherUser?.name || 'SideKick')}
+          </p>
+          <p style={{ fontSize: 11, color: '#6E6893', margin: 0 }}>
+            {otherUser?.isEvent
+              ? `${otherUser.participants?.length || 0} participants`
+              : 'Active now'}
+          </p>
         </div>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCallMode('audio')}
-          style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <Phone size={15} color="#34D399" />
-        </motion.button>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCallMode('video')}
-          style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <Video size={15} color="#7C3AED" />
-        </motion.button>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowMeetup(true)}
-          style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <CalendarClock size={15} color="#2DD4BF" />
-        </motion.button>
+        {!isEventRoom && (
+          <>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCallMode('audio')}
+              style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <Phone size={15} color="#34D399" />
+            </motion.button>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCallMode('video')}
+              style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <Video size={15} color="#7C3AED" />
+            </motion.button>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowMeetup(true)}
+              style={{ width: 34, height: 34, borderRadius: 10, background: '#2D2653', border: '1px solid #433B72', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <CalendarClock size={15} color="#2DD4BF" />
+            </motion.button>
+          </>
+        )}
       </motion.div>
 
       {/* Messages */}

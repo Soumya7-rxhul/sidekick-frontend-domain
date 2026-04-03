@@ -87,6 +87,10 @@ export default function MatchPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [minScore, setMinScore] = useState(20);
   const [viewProfile, setViewProfile] = useState(null);
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = React.useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,6 +110,21 @@ export default function MatchPage() {
     }
   };
 
+  const handleSearchChange = (e) => {
+    const q = e.target.value;
+    setSearchQ(q);
+    clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get(`/users/search?q=${encodeURIComponent(q.trim())}`);
+        setSearchResults(data.users || []);
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 350);
+  };
+
   return (
     <AppLayout>
       <PageHeader title="Matches" subtitle="Sorted by compatibility"
@@ -116,6 +135,68 @@ export default function MatchPage() {
           </motion.button>
         }
       />
+
+      {/* Search bar */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ position: 'relative', marginBottom: 16 }}>
+        <Search size={15} color="#6E6893" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input value={searchQ} onChange={handleSearchChange}
+          placeholder="Search people by name, city, vibe..."
+          style={{ width: '100%', height: 44, background: '#2D2653', border: '1.5px solid #433B72', borderRadius: 14, paddingLeft: 40, paddingRight: 14, fontSize: 14, color: '#F1F0F7', fontFamily: 'Inter, sans-serif', outline: 'none' }}
+        />
+      </motion.div>
+
+      {/* Search results */}
+      <AnimatePresence>
+        {searchQ.trim().length >= 2 && (
+          <motion.div key="search-results" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              {searching ? 'Searching...' : `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''}`}
+            </p>
+            {searchResults.length === 0 && !searching && (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: '#4A4570', fontSize: 13 }}>No users found</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {searchResults.map((u) => (
+                <motion.div key={u._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  style={{ background: '#1A1535', borderRadius: 16, border: '1px solid #2D2653', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div onClick={() => setViewProfile(u._id)} style={{ cursor: 'pointer' }}>
+                    <Avatar name={u.name} size={44} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setViewProfile(u._id)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#F1F0F7', margin: 0 }}>{u.name}</p>
+                      {(u.isIdVerified || u.isFaceVerified) && <CheckCircle size={13} color="#34D399" />}
+                    </div>
+                    {u.vibeTag && <p style={{ fontSize: 12, color: '#7C3AED', margin: '2px 0 0', fontWeight: 500 }}>{u.vibeTag}</p>}
+                    {u.location?.city && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                        <MapPin size={11} color="#6E6893" />
+                        <span style={{ fontSize: 12, color: '#6E6893' }}>{u.location.city}</span>
+                      </div>
+                    )}
+                    {u.interests?.length > 0 && (
+                      <p style={{ fontSize: 11, color: '#A8A3C7', margin: '3px 0 0' }}>{u.interests.slice(0, 3).join(' · ')}</p>
+                    )}
+                  </div>
+                  <AnimatePresence mode="wait">
+                    {sent.has(u._id) ? (
+                      <motion.div key="sent" initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#34D399', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8, padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        Sent ✓
+                      </motion.div>
+                    ) : (
+                      <motion.button key="send" whileTap={{ scale: 0.93 }} onClick={() => sendRequest(u._id)}
+                        style={{ height: 34, padding: '0 12px', background: 'linear-gradient(135deg,#7C3AED,#2DD4BF)', color: 'white', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        + Connect
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showFilter && (

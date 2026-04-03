@@ -45,6 +45,7 @@ export default function DashboardPage() {
   useEffect(() => {
     api.get('/matches/pending').then(r => setPending(r.data.pending || [])).catch(() => {}).finally(() => setLoadingPending(false));
     api.get('/matches/active').then(r => setStats(s => ({ ...s, matches: r.data.matches?.length || 0 }))).catch(() => {});
+    api.get('/events/mine').then(r => setStats(s => ({ ...s, events: r.data.events?.length || 0 }))).catch(() => {});
     setTimeout(() => setHeroPlayed(true), 2200);
   }, []);
 

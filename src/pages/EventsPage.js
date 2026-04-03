@@ -57,6 +57,7 @@ function ActivityBadge({ category }) {
 function EventCard({ event, joined, onJoin, onEdit, onDelete, onViewProfile, onChat, currentUserId, delay = 0 }) {
   const isCreator = event.creator?._id === currentUserId || event.creator === currentUserId;
   const isJoined  = joined.has(event._id) || event.participants?.some(p => p === currentUserId || p?._id === currentUserId);
+  const canChat   = isCreator || isJoined;
   const total      = event.participants?.length || 0;
   const max        = event.maxParticipants || 2;
   const isFull     = !event.isOpen || total >= max;
@@ -121,10 +122,10 @@ function EventCard({ event, joined, onJoin, onEdit, onDelete, onViewProfile, onC
           <div style={{ display: 'flex', gap: 6 }}>
             {!isCreator && (
               <motion.button whileTap={{ scale: 0.9 }}
-                onClick={() => onChat && onChat(event.creator._id || event.creator, event.creator.name)}
+                onClick={() => onViewProfile && onViewProfile(event.creator._id || event.creator)}
                 style={{ height: 28, padding: '0 10px', borderRadius: 8, background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.2)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#2DD4BF', fontFamily: 'Inter, sans-serif' }}>
-                <MessageCircle size={11} />
-                Chat
+                <User size={11} />
+                Profile
               </motion.button>
             )}
             {isCreator && (
@@ -145,7 +146,14 @@ function EventCard({ event, joined, onJoin, onEdit, onDelete, onViewProfile, onC
 
       {/* action button */}
       {isCreator ? (
-        <div style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: meta.color, padding: '8px', background: meta.bg, borderRadius: 8, fontWeight: 600 }}>Your Event</div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: meta.color, padding: '8px', background: meta.bg, borderRadius: 8, fontWeight: 600 }}>Your Event</div>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => onChat && onChat(event._id)}
+            style={{ width: 40, height: 36, background: 'rgba(124,58,237,0.1)', border: '1.5px solid rgba(124,58,237,0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <MessageCircle size={15} color="#7C3AED" />
+          </motion.button>
+        </div>
       ) : isFull ? (
         <div style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: '#6E6893', padding: '8px', background: '#231E42', borderRadius: 8, fontWeight: 500 }}>Event Full</div>
       ) : (
@@ -155,13 +163,15 @@ function EventCard({ event, joined, onJoin, onEdit, onDelete, onViewProfile, onC
             style={{ flex: 1, height: 40, background: isJoined ? 'rgba(52,211,153,0.08)' : 'transparent', color: isJoined ? '#34D399' : '#2DD4BF', border: `1.5px solid ${isJoined ? 'rgba(52,211,153,0.3)' : '#2DD4BF'}`, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: isJoined ? 'default' : 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all 0.2s' }}>
             {isJoined ? '✓ Joined' : 'Join Event'}
           </motion.button>
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            onClick={() => onChat && onChat(event.creator._id || event.creator, event.creator.name)}
-            style={{ width: 40, height: 40, background: 'rgba(124,58,237,0.1)', border: '1.5px solid rgba(124,58,237,0.3)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-            <MessageCircle size={16} color="#7C3AED" />
-          </motion.button>
+          {canChat && (
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+              onClick={() => onChat && onChat(event._id)}
+              style={{ width: 40, height: 40, background: 'rgba(124,58,237,0.1)', border: '1.5px solid rgba(124,58,237,0.3)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <MessageCircle size={16} color="#7C3AED" />
+            </motion.button>
+          )}
         </div>
-      )}
+      )}}
     </motion.div>
   );
 }
@@ -181,19 +191,13 @@ export default function EventsPage() {
   const [form, setForm] = useState({ title: '', description: '', category: 'hangout', date: '', timeSlot: 'evening', city: '', venue: '', maxParticipants: 2 });
   const [creating, setCreating]     = useState(false);
 
-  const handleChat = async (creatorId, creatorName) => {
+  const handleEventChat = async (eventId) => {
     try {
-      // Check if there's an existing match/chat room with this person
-      const { data } = await api.get('/chats/rooms');
-      const room = (data.rooms || []).find(r =>
-        r.other?._id === creatorId || r.other === creatorId
-      );
-      if (room) {
-        navigate(`/chat/${room.roomId}`);
-      } else {
-        toast(`Connect with ${creatorName} first by sending a match request!`, { icon: 'ℹ️' });
-      }
-    } catch { toast.error('Could not open chat'); }
+      await api.get(`/events/${eventId}/chat`);
+      navigate(`/chat/event_${eventId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not open event chat');
+    }
   };
 
   const fetchEvents = () => {
@@ -212,6 +216,7 @@ export default function EventsPage() {
       await api.post(`/events/${eventId}/join`);
       setJoined(j => new Set([...j, eventId]));
       fetchEvents();
+      api.get('/events/mine').then(r => setMyEvents(r.data.events || []));
       toast.success('Joined event!');
     } catch (err) { toast.error(err.response?.data?.message || 'Could not join event'); }
   };
@@ -331,7 +336,7 @@ export default function EventsPage() {
                 <EmptyState icon={Calendar} title="No events found" subtitle="Be the first to create one!" action="Create Event" onAction={() => setShowCreate(true)} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {events.map((e, i) => <EventCard key={e._id} event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleChat} currentUserId={user?._id} delay={i * 0.06} />)}
+                  {events.map((e, i) => <EventCard key={e._id} event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleEventChat} currentUserId={user?._id} delay={i * 0.06} />)}
                 </div>
               )
             }
@@ -348,7 +353,7 @@ export default function EventsPage() {
                   <>
                     <p style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0' }}>Upcoming</p>
                     {myEvents.filter(e => new Date(e.date) >= new Date()).map((e, i) => (
-                      <EventCard key={e._id} event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleChat} currentUserId={user?._id} delay={i * 0.06} />
+                      <EventCard key={e._id} event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleEventChat} currentUserId={user?._id} delay={i * 0.06} />
                     ))}
                   </>
                 )}
@@ -358,7 +363,7 @@ export default function EventsPage() {
                     <p style={{ fontSize: 11, fontWeight: 700, color: '#6E6893', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '8px 0 4px' }}>Past Events</p>
                     {myEvents.filter(e => new Date(e.date) < new Date()).reverse().map((e, i) => (
                       <div key={e._id} style={{ opacity: 0.6 }}>
-                      <EventCard event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleChat} currentUserId={user?._id} delay={i * 0.06} />
+                      <EventCard event={e} joined={joined} onJoin={joinEvent} onEdit={startEdit} onDelete={deleteEvent} onViewProfile={(id) => setViewProfile(id)} onChat={handleEventChat} currentUserId={user?._id} delay={i * 0.06} />
                       </div>
                     ))}
                   </>
